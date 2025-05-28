@@ -17,28 +17,38 @@ DIAGNOSES = {
     'Vaginite Aeróbia':      'Conclusão para vaginite aeróbia...',
 }
 
-# Função para recortar a imagem no círculo
+# Redimensiona imagem para que o maior lado seja, no máximo, max_dim pixels
+def resize_image(pil_img: Image.Image, max_dim: int = 800) -> Image.Image:
+    w, h = pil_img.size
+    if max(w, h) > max_dim:
+        scale = max_dim / max(w, h)
+        new_size = (int(w * scale), int(h * scale))
+        return pil_img.resize(new_size, Image.ANTIALIAS)
+    return pil_img
+
+# Recorta a imagem ao redor do círculo detectado; se não detectar, faz center crop quadrado
 def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
     cv_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
     gray = cv2.medianBlur(gray, 5)
     circles = cv2.HoughCircles(
-        gray, cv2.HOUGH_GRADIENT, dp=1, minDist=gray.shape[0]/8,
+        gray, cv2.HOUGH_GRADIENT, dp=1, minDist=gray.shape[0] / 8,
         param1=100, param2=30
     )
     if circles is not None:
         x, y, r = np.uint16(np.around(circles[0][0]))
-        x1, y1 = max(x-r, 0), max(y-r, 0)
-        x2, y2 = min(x+r, cv_img.shape[1]), min(y+r, cv_img.shape[0])
+        x1, y1 = max(x - r, 0), max(y - r, 0)
+        x2, y2 = min(x + r, cv_img.shape[1]), min(y + r, cv_img.shape[0])
         crop = cv_img[y1:y2, x1:x2]
     else:
         h, w = cv_img.shape[:2]
         side = min(h, w)
-        x1, y1 = (w-side)//2, (h-side)//2
-        crop = cv_img[y1:y1+side, x1:x1+side]
-    return Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+        x1, y1 = (w - side) // 2, (h - side) // 2
+        crop = cv_img[y1:y1 + side, x1:x1 + side]
+    rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(rgb)
 
-# Função para baixar o template DOCX a partir do link
+# Baixa template DOCX a partir de URL
 def download_template(url: str) -> str:
     resp = requests.get(url)
     resp.raise_for_status()
@@ -47,7 +57,7 @@ def download_template(url: str) -> str:
         f.write(resp.content)
     return tmp_path
 
-# Função principal da app
+# Função principal
 def main():
     st.title('🧪 Laudos de Microscopia')
 
@@ -67,10 +77,10 @@ def main():
         f'Export?id={file_id}&exportFormat=docx'
     )
 
-    # Upload de imagens e preview com legendas
+    # Upload de imagens e preview com legendas abaixo de cada uma
     uploaded = st.file_uploader(
         'Envie até 3 fotos (png/jpg)',
-        type=['png','jpg','jpeg'],
+        type=['png', 'jpg', 'jpeg'],
         accept_multiple_files=True
     )
     legend_inputs = ['', '', '']
@@ -78,20 +88,20 @@ def main():
         st.subheader('Pré-visualização e legendas')
         cols = st.columns(3)
         for idx, col in enumerate(cols):
-            col.write(f'Imagem {idx+1}')
+            col.write(f'Imagem {idx + 1}')
             if idx < len(uploaded):
                 img = Image.open(uploaded[idx])
+                img = resize_image(img)
                 col.image(img, use_container_width=True)
-            legend_inputs[idx] = col.text_input(f'Legenda {idx+1}')
+            legend_inputs[idx] = col.text_input(f'Legenda {idx + 1}')
 
-    # Formulário para dados fixos
+    # Formulário para dados da paciente
     with st.form('form_laudo'):
         name = st.text_input('Nome Completo da Paciente')
         date_col = st.date_input('Data da Coleta')
         diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
         submitted = st.form_submit_button('Gerar Laudo')
 
-    # Geração do laudo
     if submitted:
         if not uploaded or len(uploaded) < 3:
             st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
@@ -104,10 +114,15 @@ def main():
             # Baixa o template
             tpl_path = download_template(template_url)
 
-            # Recorta imagens
-            cropped_imgs = [crop_to_circle_square(Image.open(f)) for f in uploaded[:3]]
+            # Prepara imagens: resize + crop
+            cropped_imgs = []
+            for f in uploaded[:3]:
+                img = Image.open(f)
+                img = resize_image(img)
+                cropped = crop_to_circle_square(img)
+                cropped_imgs.append(cropped)
 
-            # Renderiza DOCX
+            # Renderiza DOCX via docxtpl
             doc = DocxTemplate(tpl_path)
             for i, img in enumerate(cropped_imgs, 1):
                 img_path = f'tmp_{i}.png'
@@ -131,7 +146,7 @@ def main():
             doc.render(context)
             doc.save(out_docx)
 
-            # Download do resultado
+            # Botão de download do DOCX
             with open(out_docx, 'rb') as f:
                 st.download_button(
                     '⬇️ Baixar .docx',
@@ -149,4 +164,4 @@ def main():
                     os.remove(p)
 
 if __name__ == '__main__':
-    ma
+    main()
