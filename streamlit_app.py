@@ -23,7 +23,8 @@ def resize_image(pil_img: Image.Image, max_dim: int = 800) -> Image.Image:
     if max(w, h) > max_dim:
         scale = max_dim / max(w, h)
         new_size = (int(w * scale), int(h * scale))
-        return pil_img.resize(new_size, Image.ANTIALIAS)
+        # usa LANCZOS para melhor qualidade
+        return pil_img.resize(new_size, resample=Image.LANCZOS)
     return pil_img
 
 # Recorta a imagem ao redor do círculo detectado; se não detectar, faz center crop quadrado
