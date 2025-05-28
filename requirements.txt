@@ -6,3 +6,4 @@ python-docx
 docxtpl
 datetime
 docx2pdf
+requests
