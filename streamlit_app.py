@@ -57,7 +57,6 @@ def resize_image(pil_img: Image.Image, max_dim: int = 800) -> Image.Image:
     if max(w, h) > max_dim:
         scale = max_dim / max(w, h)
         new_size = (int(w * scale), int(h * scale))
-        # ANTIALIAS foi removido em PIL 10; usar LANCZOS
         return pil_img.resize(new_size, Image.LANCZOS)
     return pil_img
 
@@ -95,9 +94,8 @@ def download_template(url: str) -> str:
 # Função principal
 def main():
     st.title('🧪 Laudos de Microscopia')
-    # Data de hoje no fuso de São Paulo
     today_sp = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y')
-    # Input do ID do Google Docs com valor default
+    # ID do Google Docs
     file_id = st.text_input(
         'ID do arquivo Google Docs para template (.docx)',
         value='1qppBMNjSTlUMtXMQ7EtHt2fDHpnwnQjMqNPl7b3A4oUa'
@@ -109,7 +107,7 @@ def main():
         'https://docs.google.com/feeds/download/documents/export/'
         f'Export?id={file_id}&exportFormat=docx'
     )
-    # Upload de imagens e preview com legendas abaixo de cada uma
+    # Upload e legendas
     uploaded = st.file_uploader(
         'Envie até 3 fotos (png/jpg)',
         type=['png', 'jpg', 'jpeg'],
@@ -126,13 +124,12 @@ def main():
                 img = resize_image(img)
                 col.image(img, use_container_width=True)
             legend_inputs[idx] = col.text_input(f'Legenda {idx + 1}')
-    # Formulário para dados da paciente
+    # Formulário
     with st.form('form_laudo'):
         name = st.text_input('Nome Completo da Paciente')
         date_col = st.date_input('Data da Coleta')
         diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
         submitted = st.form_submit_button('Gerar Laudo')
-    # Geração do laudo
     if submitted:
         if not uploaded or len(uploaded) < 3:
             st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
@@ -141,20 +138,18 @@ def main():
         tmp_imgs = []
         out_docx = None
         try:
-            # Baixa o template
             tpl_path = download_template(template_url)
-            # Prepara imagens: resize + crop
             cropped_imgs = []
             for f in uploaded[:3]:
                 img = Image.open(f)
                 img = resize_image(img)
                 cropped = crop_to_circle_square(img)
                 cropped_imgs.append(cropped)
-            # Determina autores e referência com base no diagnóstico
+            # Define autores e referência
             if diagnosis in ['Vaginose Citolítica', 'Vaginose Citolítica + candidíase']:
                 autores = 'Cibley & Cibley (1991)'
                 referencia = (
-                    'Cibley LJ, Cibley LJ. Cytolytic vaginosis. '  
+                    'Cibley LJ, Cibley LJ. Cytolytic vaginosis. '
                     'American Journal of Obstetrics and Gynecology 1991; 165:1245-1248.'
                 )
             elif diagnosis == 'Vaginite Aeróbia':
@@ -167,11 +162,14 @@ def main():
             else:
                 autores = 'Nugent et al. (1991)'
                 referencia = (
-                    'Nugent RP, Krohn MA, Hillier SL. Reliability of diagnosing bacterial vaginosis '  
+                    'Nugent RP, Krohn MA, Hillier SL. Reliability of diagnosing bacterial vaginosis '
                     'is improved by a standardized method of Gram stain interpretation. '
                     'Journal of Clinical Microbiology 1991; 29:297-301.'
                 )
-            # Renderiza DOCX via docxtpl
+            # Gera nome do arquivo de saída
+            safe_name = name.strip().replace(' ', '_')
+            out_docx = f'Laudo - {safe_name}.docx'
+            # Renderiza e salva
             doc = DocxTemplate(tpl_path)
             for i, img in enumerate(cropped_imgs, 1):
                 img_path = f'tmp_{i}.png'
@@ -192,10 +190,9 @@ def main():
                 'imagem2': InlineImage(doc, tmp_imgs[1], width=Mm(50)),
                 'imagem3': InlineImage(doc, tmp_imgs[2], width=Mm(50)),
             }
-            out_docx = 'laudo_final.docx'
             doc.render(context)
             doc.save(out_docx)
-            # Download do resultado
+            # Download
             with open(out_docx, 'rb') as f:
                 st.download_button(
                     '⬇️ Baixar .docx', data=f.read(), file_name=out_docx
@@ -203,7 +200,6 @@ def main():
         except Exception as e:
             st.error(f'Falha ao gerar laudo: {e}')
         finally:
-            # Limpeza de arquivos temporários
             paths = ([tpl_path] if tpl_path else []) + tmp_imgs + ([out_docx] if out_docx else [])
             for p in paths:
                 if p and os.path.exists(p):
