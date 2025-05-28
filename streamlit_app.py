@@ -11,10 +11,16 @@ import requests
 
 # Mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
-    'Vaginose Citolítica': 'Conclusão para vaginose citolítica...',
-    'Vaginose Bacteriana':  'Conclusão para vaginose bacteriana...',
-    'Candidíase':            'Conclusão para candidíase...',
-    'Vaginite Aeróbia':      'Conclusão para vaginite aeróbia...',
+    'Vaginose Citolítica': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica.',
+    'Vaginose Citolítica + candidíase': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica. Observa-se concomitantemente presença de elementos micóticos.',
+    'Vaginose Bacteriana escore 7':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7).',
+    'Vaginose Bacteriana escore 7 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7). Observa-se concomitantemente presença de elementos micóticos.',
+    'Vaginose Bacteriana escore 8':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8).',
+    'Vaginose Bacteriana escore 8 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8). Observa-se concomitantemente presença de elementos micóticos.',
+    'Vaginose Bacteriana escore 10':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana.',
+    'Vaginose Bacteriana escore 10 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana. Observa-se concomitantemente presença de elementos micóticos.',
+    'Candidíase':            'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).',
+    'Vaginite Aeróbia':      'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
 }
 
 # Redimensiona imagem para que o maior lado seja, no máximo, max_dim pixels
