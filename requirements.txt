@@ -6,6 +6,3 @@ python-docx
 docxtpl
 datetime
 docx2pdf
-io
-os
-PIL
