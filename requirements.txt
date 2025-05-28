@@ -1,1 +1,6 @@
-streamlit opencv-python Pillow python-docx
+streamlit
+opencv-python
+Pillow
+python-docx
+numpy
+cv2
