@@ -8,7 +8,6 @@ from docx.shared import Mm
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
-from docx import Document as DocxReader
 
 # Mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
@@ -18,7 +17,7 @@ DIAGNOSES = {
     'Vaginite Aeróbia':      'Conclusão para vaginite aeróbia...',
 }
 
-# Função para recorte
+# Função para recortar a imagem no círculo
 def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
     cv_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
@@ -39,7 +38,7 @@ def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
         crop = cv_img[y1:y1+side, x1:x1+side]
     return Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
 
-# Baixa template a partir do URL construído
+# Função para baixar o template DOCX a partir do link
 def download_template(url: str) -> str:
     resp = requests.get(url)
     resp.raise_for_status()
@@ -48,80 +47,82 @@ def download_template(url: str) -> str:
         f.write(resp.content)
     return tmp_path
 
-# Função principal
+# Função principal da app
 def main():
     st.title('🧪 Laudos de Microscopia')
 
-    # Data de hoje em fuso de São Paulo
+    # Data de hoje no fuso de São Paulo
     today_sp = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y')
 
-    # Input do ID do Google Docs (pré-preenchido)
+    # Input do ID do Google Docs com valor default
     file_id = st.text_input(
-        'ID do arquivo Google Docs para template .docx',
+        'ID do arquivo Google Docs para template (.docx)',
         value='1qppBMNjSTlUMtXMQ7EtHt2fDHpnwnQjMqNPl7b3A4oUa'
     )
     if not file_id:
         st.info('Insira o ID do arquivo no Google Docs.')
         return
-    # Monta URL de download
     template_url = (
         'https://docs.google.com/feeds/download/documents/export/'
         f'Export?id={file_id}&exportFormat=docx'
     )
 
-    # Upload e preview das imagens
+    # Upload de imagens e preview com legendas
     uploaded = st.file_uploader(
         'Envie até 3 fotos (png/jpg)',
         type=['png','jpg','jpeg'],
         accept_multiple_files=True
     )
+    legend_inputs = ['', '', '']
     if uploaded:
+        st.subheader('Pré-visualização e legendas')
         cols = st.columns(3)
         for idx, col in enumerate(cols):
             col.write(f'Imagem {idx+1}')
             if idx < len(uploaded):
                 img = Image.open(uploaded[idx])
                 col.image(img, use_container_width=True)
+            legend_inputs[idx] = col.text_input(f'Legenda {idx+1}')
 
-    # Formulário
+    # Formulário para dados fixos
     with st.form('form_laudo'):
-        name         = st.text_input('Nome Completo da Paciente')
-        date_col_str = st.text_input('Data da Coleta (DD/MM/AAAA)')
-        diagnosis    = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
-        captions     = [st.text_input(f'Legenda {i+1}') for i in range(3)]
-        submitted    = st.form_submit_button('Gerar Laudo')
+        name = st.text_input('Nome Completo da Paciente')
+        date_col = st.date_input('Data da Coleta')
+        diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
+        submitted = st.form_submit_button('Gerar Laudo')
 
+    # Geração do laudo
     if submitted:
         if not uploaded or len(uploaded) < 3:
-            st.error('Envie 3 imagens antes de gerar o laudo.')
+            st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
             return
 
         tpl_path = None
         tmp_imgs = []
         out_docx = None
         try:
-            # Baixa template
+            # Baixa o template
             tpl_path = download_template(template_url)
 
             # Recorta imagens
-            cropped = [crop_to_circle_square(Image.open(f)) for f in uploaded[:3]]
+            cropped_imgs = [crop_to_circle_square(Image.open(f)) for f in uploaded[:3]]
 
-            # Renderiza DOCX via docxtpl
+            # Renderiza DOCX
             doc = DocxTemplate(tpl_path)
-            for i, img in enumerate(cropped, 1):
+            for i, img in enumerate(cropped_imgs, 1):
                 img_path = f'tmp_{i}.png'
                 img.save(img_path)
                 tmp_imgs.append(img_path)
 
             context = {
                 'nome': name,
-                'data_coleta': date_col_str,
+                'data_coleta': date_col.strftime('%d/%m/%Y'),
                 'data_hoje': today_sp,
                 'diagnostico': diagnosis,
                 'conclusao_diagnostico': DIAGNOSES.get(diagnosis, ''),
-                'legenda1': captions[0],
-                'legenda2': captions[1],
-                'legenda3': captions[2],
+                'legenda1': legend_inputs[0],
+                'legenda2': legend_inputs[1],
+                'legenda3': legend_inputs[2],
                 'imagem1': InlineImage(doc, tmp_imgs[0], width=Mm(50)),
                 'imagem2': InlineImage(doc, tmp_imgs[1], width=Mm(50)),
                 'imagem3': InlineImage(doc, tmp_imgs[2], width=Mm(50)),
@@ -130,24 +131,22 @@ def main():
             doc.render(context)
             doc.save(out_docx)
 
-            # Preview do DOCX
-            st.subheader('Preview do Laudo Final (.docx)')
-            reader = DocxReader(out_docx)
-            preview_text = '\n'.join(p.text for p in reader.paragraphs if p.text.strip())
-            st.text_area('Conteúdo do Laudo', preview_text, height=300)
-
-            # Download
+            # Download do resultado
             with open(out_docx, 'rb') as f:
-                st.download_button('⬇️ Baixar .docx', f.read(), file_name=out_docx)
+                st.download_button(
+                    '⬇️ Baixar .docx',
+                    data=f.read(),
+                    file_name=out_docx
+                )
 
         except Exception as e:
             st.error(f'Falha ao gerar laudo: {e}')
         finally:
-            # Limpeza
+            # Limpeza de arquivos temporários
             paths = ([tpl_path] if tpl_path else []) + tmp_imgs + ([out_docx] if out_docx else [])
             for p in paths:
                 if p and os.path.exists(p):
                     os.remove(p)
 
 if __name__ == '__main__':
-    main()
+    ma
