@@ -1,1 +1,1 @@
-streamlit
+streamlit opencv-python Pillow python-docx
