@@ -79,31 +79,38 @@ def gerar_laudo(
 
 def main():
     st.title('🧪 Laudos de Microscopia')
-    with st.form('form_laudo'):
-        name = st.text_input('Nome Completo da Paciente')
-        date_col = st.date_input('Data da Coleta')
-        diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
-        caption1 = st.text_input('Legenda 1')
-        caption2 = st.text_input('Legenda 2')
-        caption3 = st.text_input('Legenda 3')
-        uploaded = st.file_uploader(
-            'Envie até 3 fotos (png/jpg)',
-            type=['png','jpg','jpeg'],
-            accept_multiple_files=True
-        )
-        submitted = st.form_submit_button('Gerar Laudo')
 
+    # 1) uploader e preview imediato, FORA do form:
+    uploaded = st.file_uploader(
+        'Envie até 3 fotos (png/jpg)',
+        type=['png','jpg','jpeg'],
+        accept_multiple_files=True
+    )
     if uploaded:
         st.subheader('Pré-via das imagens originais')
         for file in uploaded[:3]:
             img = Image.open(file)
             st.image(img, caption=file.name, use_column_width=True)
 
+    # 2) resto do formulário:
+    with st.form('form_laudo'):
+        name      = st.text_input('Nome Completo da Paciente')
+        date_col  = st.date_input('Data da Coleta')
+        diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
+        caption1  = st.text_input('Legenda 1')
+        caption2  = st.text_input('Legenda 2')
+        caption3  = st.text_input('Legenda 3')
+        submitted = st.form_submit_button('Gerar Laudo')
+
+    # 3) ao submeter, faz o recorte e gera o .docx:
     if submitted:
-        if len(uploaded) < 3:
-            st.error('Por favor, envie 3 imagens.')
+        if not uploaded or len(uploaded) < 3:
+            st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
             return
+
+        # … código de crop_to_circle_square e gerar_laudo …
         cropped_imgs = [crop_to_circle_square(Image.open(f)) for f in uploaded[:3]]
+
         st.subheader('Pré-via das imagens recortadas')
         for i, img in enumerate(cropped_imgs, 1):
             st.image(img, caption=f'Imagem {i} recortada', use_column_width=True)
