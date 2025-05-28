@@ -1,12 +1,11 @@
-# app.py
-
 import streamlit as st
-import cv2
-import numpy as np
 from PIL import Image
 import io
-from docx import Document
-from docx.shared import Inches
+import os
+import numpy as np
+import cv2
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 
 # 1. Mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
@@ -16,6 +15,9 @@ DIAGNOSES = {
     'Vaginite Aeróbia':      'Conclusão para vaginite aeróbia...',
     # adicione mais conforme necessário
 }
+
+TEMPLATE_PATH = 'template.docx'
+
 
 def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
     """Detecta círculo e retorna crop quadrado ao redor; se falhar, faz center crop."""
@@ -48,89 +50,79 @@ def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
     rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
     return Image.fromarray(rgb)
 
-def gerar_laudo(
-    name: str,
-    date_col,
-    diagnosis: str,
-    captions: list[str],
-    cropped_images: list[Image.Image]
-) -> io.BytesIO:
-    """Monta um .docx com dados da paciente, conclusão e imagens na segunda página."""
-    doc = Document()
-    doc.add_heading('Laudo de Microscopia', level=1)
-    doc.add_paragraph(f'Nome da Paciente: {name}')
-    doc.add_paragraph(f'Data da Coleta: {date_col.strftime("%d/%m/%Y")}')
-    doc.add_paragraph(f'Diagnóstico: {diagnosis}')
-    doc.add_paragraph('Conclusão:')
-    doc.add_paragraph(DIAGNOSES.get(diagnosis, ''))
-
-    doc.add_page_break()
-    for img, leg in zip(cropped_images, captions):
-        doc.add_paragraph(leg)
-        bio = io.BytesIO()
-        img.save(bio, format='PNG')
-        bio.seek(0)
-        doc.add_picture(bio, width=Inches(4))
-
-    buf = io.BytesIO()
-    doc.save(buf)
-    buf.seek(0)
-    return buf
 
 def main():
     st.title('🧪 Laudos de Microscopia')
 
-    # 1) uploader e preview imediato, FORA do form:
+    # uploader e preview das originais, fora do form
     uploaded = st.file_uploader(
         'Envie até 3 fotos (png/jpg)',
         type=['png','jpg','jpeg'],
         accept_multiple_files=True
     )
     if uploaded:
-        st.subheader('Pré-via das imagens originais')
-        for file in uploaded[:3]:
-            img = Image.open(file)
-            st.image(img, caption=file.name, use_column_width=True)
+        st.subheader('Pré-visualização das imagens originais')
+        cols = st.columns(3)
+        for idx, col in enumerate(cols):
+            col.write(f'Imagem {idx+1}')
+            if idx < len(uploaded):
+                img = Image.open(uploaded[idx])
+                col.image(img, use_container_width=True)
 
-    # 2) resto do formulário:
+    # formulário com demais campos
     with st.form('form_laudo'):
-        name      = st.text_input('Nome Completo da Paciente')
-        date_col  = st.date_input('Data da Coleta')
+        name = st.text_input('Nome Completo da Paciente')
+        date_col = st.date_input('Data da Coleta')
         diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
-        caption1  = st.text_input('Legenda 1')
-        caption2  = st.text_input('Legenda 2')
-        caption3  = st.text_input('Legenda 3')
+        captions = [st.text_input(f'Legenda {i+1}') for i in range(3)]
         submitted = st.form_submit_button('Gerar Laudo')
 
-    # 3) ao submeter, faz o recorte e gera o .docx:
     if submitted:
         if not uploaded or len(uploaded) < 3:
             st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
             return
 
-        # … código de crop_to_circle_square e gerar_laudo …
+        # recorte
         cropped_imgs = [crop_to_circle_square(Image.open(f)) for f in uploaded[:3]]
 
-        st.subheader('Pré-via das imagens recortadas')
+        # cria o documento a partir do template
+        doc = DocxTemplate(TEMPLATE_PATH)
+        # salva imagens temporárias
+        tmp_files = []
         for i, img in enumerate(cropped_imgs, 1):
-            st.image(img, caption=f'Imagem {i} recortada', use_column_width=True)
+            tmp_path = f'tmp_img_{i}.png'
+            img.save(tmp_path)
+            tmp_files.append(tmp_path)
 
-        buffer = gerar_laudo(
-            name, date_col, diagnosis,
-            [caption1, caption2, caption3],
-            cropped_imgs
-        )
+        # prepara contexto para renderização
+        context = {
+            'nome': name,
+            'data': date_col.strftime('%d/%m/%Y'),
+            'diagnostico': diagnosis,
+            'legenda1': captions[0],
+            'legenda2': captions[1],
+            'legenda3': captions[2],
+            'imagem1': InlineImage(doc, tmp_files[0], width=Mm(50)),
+            'imagem2': InlineImage(doc, tmp_files[1], width=Mm(50)),
+            'imagem3': InlineImage(doc, tmp_files[2], width=Mm(50)),
+        }
+        doc.render(context)
+        out_path = 'laudo_final.docx'
+        doc.save(out_path)
+
+        # limpa temporários
+        for p in tmp_files:
+            os.remove(p)
+
+        # botão de download
+        with open(out_path, 'rb') as f:
+            data = f.read()
         st.download_button(
-            '⬇️ Baixar Laudo (.docx)',
-            data=buffer,
-            file_name='laudo.docx',
+            '⬇️ Baixar Laudo',
+            data=data,
+            file_name=out_path,
             mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         )
-
-    # === FUTURA INTEGRAÇÃO COM GOOGLE SHEETS ===
-    # Exemplo: usar gspread/pygsheets, credenciais no st.secrets,
-    # abrir planilha modelo, preencher células e salvar.
-    # st.write('Integração com Google Sheets ainda não implementada.')
 
 if __name__ == '__main__':
     main()
