@@ -21,6 +21,11 @@ DIAGNOSES = {
     'Vaginose Bacteriana escore 10 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana. Observa-se concomitantemente presença de elementos micóticos.',
     'Candidíase':            'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).',
     'Vaginite Aeróbia':      'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
+    'Flora I':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
+    'Flora II':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora II. Concomitantemente visualiza-se a presença de inúmeros polimorfonucleares (3+/4+).',
+    'Flora III - Vaginose bacteriana':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora III.',
+
+
 }
 
 # Redimensiona imagem para que o maior lado seja, no máximo, max_dim pixels
