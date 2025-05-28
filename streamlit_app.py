@@ -9,23 +9,46 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
 
-# Mapeamento diagnóstico → texto de conclusão
+# Novo mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
     'Vaginose Citolítica': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica.',
-    'Vaginose Citolítica + candidíase': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica. Observa-se concomitantemente presença de elementos micóticos.',
-    'Vaginose Bacteriana escore 7':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7).',
-    'Vaginose Bacteriana escore 7 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7). Observa-se concomitantemente presença de elementos micóticos.',
-    'Vaginose Bacteriana escore 8':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8).',
-    'Vaginose Bacteriana escore 8 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8). Observa-se concomitantemente presença de elementos micóticos.',
-    'Vaginose Bacteriana escore 10':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana.',
-    'Vaginose Bacteriana escore 10 + candidíase':  'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana. Observa-se concomitantemente presença de elementos micóticos.',
-    'Candidíase':            'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).',
-    'Vaginite Aeróbia':      'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
-    'Flora I':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
-    'Flora II':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora II. Concomitantemente visualiza-se a presença de inúmeros polimorfonucleares (3+/4+).',
-    'Flora III - Vaginose bacteriana':      'O padrão de microbiota apresentado na lâmina pesquisada é de Flora III.',
-
-
+    'Vaginose Citolítica + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica. '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 7': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7).'
+    ),
+    'Vaginose Bacteriana escore 7 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7). '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 8': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8).'
+    ),
+    'Vaginose Bacteriana escore 8 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8). '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 10': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). '
+        'Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana.'
+    ),
+    'Vaginose Bacteriana escore 10 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). '
+        'Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana. '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Candidíase': (
+        'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).'
+    ),
+    'Vaginite Aeróbia': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
+    'Flora I': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
+    'Flora II': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Flora II. '
+        'Concomitantemente visualiza-se a presença de inúmeros polimorfonucleares (3+/4+).'
+    ),
+    'Flora III - Vaginose bacteriana': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora III.',
 }
 
 # Redimensiona imagem para que o maior lado seja, no máximo, max_dim pixels
@@ -34,8 +57,8 @@ def resize_image(pil_img: Image.Image, max_dim: int = 800) -> Image.Image:
     if max(w, h) > max_dim:
         scale = max_dim / max(w, h)
         new_size = (int(w * scale), int(h * scale))
-        # usa LANCZOS para melhor qualidade
-        return pil_img.resize(new_size, resample=Image.LANCZOS)
+        # ANTIALIAS foi removido em PIL 10; usar LANCZOS
+        return pil_img.resize(new_size, Image.LANCZOS)
     return pil_img
 
 # Recorta a imagem ao redor do círculo detectado; se não detectar, faz center crop quadrado
@@ -72,10 +95,8 @@ def download_template(url: str) -> str:
 # Função principal
 def main():
     st.title('🧪 Laudos de Microscopia')
-
     # Data de hoje no fuso de São Paulo
     today_sp = datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y')
-
     # Input do ID do Google Docs com valor default
     file_id = st.text_input(
         'ID do arquivo Google Docs para template (.docx)',
@@ -88,7 +109,6 @@ def main():
         'https://docs.google.com/feeds/download/documents/export/'
         f'Export?id={file_id}&exportFormat=docx'
     )
-
     # Upload de imagens e preview com legendas abaixo de cada uma
     uploaded = st.file_uploader(
         'Envie até 3 fotos (png/jpg)',
@@ -106,26 +126,23 @@ def main():
                 img = resize_image(img)
                 col.image(img, use_container_width=True)
             legend_inputs[idx] = col.text_input(f'Legenda {idx + 1}')
-
     # Formulário para dados da paciente
     with st.form('form_laudo'):
         name = st.text_input('Nome Completo da Paciente')
         date_col = st.date_input('Data da Coleta')
         diagnosis = st.selectbox('Diagnóstico', list(DIAGNOSES.keys()))
         submitted = st.form_submit_button('Gerar Laudo')
-
+    # Geração do laudo
     if submitted:
         if not uploaded or len(uploaded) < 3:
             st.error('Por favor, envie 3 imagens antes de gerar o laudo.')
             return
-
         tpl_path = None
         tmp_imgs = []
         out_docx = None
         try:
             # Baixa o template
             tpl_path = download_template(template_url)
-
             # Prepara imagens: resize + crop
             cropped_imgs = []
             for f in uploaded[:3]:
@@ -133,20 +150,41 @@ def main():
                 img = resize_image(img)
                 cropped = crop_to_circle_square(img)
                 cropped_imgs.append(cropped)
-
+            # Determina autores e referência com base no diagnóstico
+            if diagnosis in ['Vaginose Citolítica', 'Vaginose Citolítica + candidíase']:
+                autores = 'Cibley & Cibley (1991)'
+                referencia = (
+                    'Cibley LJ, Cibley LJ. Cytolytic vaginosis. '  
+                    'American Journal of Obstetrics and Gynecology 1991; 165:1245-1248.'
+                )
+            elif diagnosis == 'Vaginite Aeróbia':
+                autores = 'Donders et al. (2002)'
+                referencia = (
+                    'Donders GGG, Vereecken A, Bosmans E, Dekeersmaecker A, Salembier G, Spitz B. '
+                    'Definition of a type of abnormal vaginal flora that is distinct from bacterial vaginosis: '
+                    'aerobic vaginitis. British Journal of Obstetrics and Gynaecology 2002; 109:34-43.'
+                )
+            else:
+                autores = 'Nugent et al. (1991)'
+                referencia = (
+                    'Nugent RP, Krohn MA, Hillier SL. Reliability of diagnosing bacterial vaginosis '  
+                    'is improved by a standardized method of Gram stain interpretation. '
+                    'Journal of Clinical Microbiology 1991; 29:297-301.'
+                )
             # Renderiza DOCX via docxtpl
             doc = DocxTemplate(tpl_path)
             for i, img in enumerate(cropped_imgs, 1):
                 img_path = f'tmp_{i}.png'
                 img.save(img_path)
                 tmp_imgs.append(img_path)
-
             context = {
                 'nome': name,
                 'data_coleta': date_col.strftime('%d/%m/%Y'),
                 'data_hoje': today_sp,
                 'diagnostico': diagnosis,
                 'conclusao_diagnostico': DIAGNOSES.get(diagnosis, ''),
+                'autores': autores,
+                'referencia_completa': referencia,
                 'legenda1': legend_inputs[0],
                 'legenda2': legend_inputs[1],
                 'legenda3': legend_inputs[2],
@@ -157,15 +195,11 @@ def main():
             out_docx = 'laudo_final.docx'
             doc.render(context)
             doc.save(out_docx)
-
-            # Botão de download do DOCX
+            # Download do resultado
             with open(out_docx, 'rb') as f:
                 st.download_button(
-                    '⬇️ Baixar .docx',
-                    data=f.read(),
-                    file_name=out_docx
+                    '⬇️ Baixar .docx', data=f.read(), file_name=out_docx
                 )
-
         except Exception as e:
             st.error(f'Falha ao gerar laudo: {e}')
         finally:
