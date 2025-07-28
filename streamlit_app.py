@@ -43,6 +43,7 @@ DIAGNOSES = {
         'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).'
     ),
     'Vaginite Aeróbia': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
+    'Vaginite Atrófica': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite Atrófica.',
     'Flora I': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
     'Flora I + candidíase': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1). Observa-se concomitantemente presença de elementos micóticos.',
 
