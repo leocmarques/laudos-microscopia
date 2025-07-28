@@ -144,7 +144,7 @@ def main():
             # abre e redimensiona para preview
             pil_img = Image.open(img_file)
             pil_img = resize_image(pil_img)
-            col.image(pil_img, use_column_width=True)
+            col.image(pil_img, use_container_width=True)
             images[i] = img_file
             legend_inputs[i] = col.text_input(
                 f"Legenda {i+1}",
