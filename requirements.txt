@@ -7,3 +7,4 @@ docxtpl
 datetime
 docx2pdf
 requests
+streamlit_tags
