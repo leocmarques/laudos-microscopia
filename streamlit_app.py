@@ -12,7 +12,7 @@ from streamlit_tags import st_tags
 
 
 LEGENDS_URL = (
-    "https://github.com/leocmarques/laudos-microscopia/blob/main/legendas.json"
+    "https://raw.githubusercontent.com/leocmarques/laudos-microscopia/main/legendas.json"
 )
 
 # Carrega a lista de legendas do GitHub (cacheada por 1h)
