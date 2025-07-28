@@ -9,7 +9,91 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
 
-# --- (DIAGNOSES, resize_image, crop_to_circle_square, download_template permanecem iguais) ---
+# Novo mapeamento diagnóstico → texto de conclusão
+DIAGNOSES = {
+    'Vaginose Citolítica': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica.',
+    'Vaginose Citolítica + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose citolítica. '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 7': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7).'
+    ),
+    'Vaginose Bacteriana escore 7 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 7). '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 8': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8).'
+    ),
+    'Vaginose Bacteriana escore 8 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 8). '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Vaginose Bacteriana escore 10': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). '
+        'Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana.'
+    ),
+    'Vaginose Bacteriana escore 10 + candidíase': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginose Bacteriana (escore 10). '
+        'Observa-se ausência de Lactobacillus e muitas bactérias do core patológico da Vaginose Bacteriana. '
+        'Observa-se concomitantemente presença de elementos micóticos.'
+    ),
+    'Candidíase': (
+        'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).'
+    ),
+    'Vaginite Aeróbia': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
+    'Flora I': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
+    'Flora I + candidíase': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1). Observa-se concomitantemente presença de elementos micóticos.',
+
+    'Flora II': (
+        'O padrão de microbiota apresentado na lâmina pesquisada é de Flora II.  '
+        'Concomitantemente visualiza-se a presença de inúmeros polimorfonucleares (3+/4+).'
+    ),
+    'Flora III - Vaginose bacteriana': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora III.',
+}
+
+# Redimensiona imagem para que o maior lado seja, no máximo, max_dim pixels
+def resize_image(pil_img: Image.Image, max_dim: int = 800) -> Image.Image:
+    w, h = pil_img.size
+    if max(w, h) > max_dim:
+        scale = max_dim / max(w, h)
+        new_size = (int(w * scale), int(h * scale))
+        return pil_img.resize(new_size, Image.LANCZOS)
+    return pil_img
+
+# Recorta a imagem ao redor do círculo detectado; se não detectar, faz center crop quadrado
+def crop_to_circle_square(pil_img: Image.Image) -> Image.Image:
+    cv_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.medianBlur(gray, 5)
+    circles = cv2.HoughCircles(
+        gray, cv2.HOUGH_GRADIENT, dp=1, minDist=gray.shape[0] / 8,
+        param1=100, param2=30
+    )
+    if circles is not None:
+        x, y, r = np.uint16(np.around(circles[0][0]))
+        x1, y1 = max(x - r, 0), max(y - r, 0)
+        x2, y2 = min(x + r, cv_img.shape[1]), min(y + r, cv_img.shape[0])
+        crop = cv_img[y1:y2, x1:x2]
+    else:
+        h, w = cv_img.shape[:2]
+        side = min(h, w)
+        x1, y1 = (w - side) // 2, (h - side) // 2
+        crop = cv_img[y1:y1 + side, x1:x1 + side]
+    rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(rgb)
+
+# Baixa template DOCX a partir de URL
+def download_template(url: str) -> str:
+    resp = requests.get(url)
+    resp.raise_for_status()
+    tmp_path = 'template_temp.docx'
+    with open(tmp_path, 'wb') as f:
+        f.write(resp.content)
+    return tmp_path
+
+
 
 def main():
     st.title('🧪 Laudos de Microscopia')
