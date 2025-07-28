@@ -8,19 +8,7 @@ from docx.shared import Mm
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
-from streamlit_tags import st_tags
 
-
-LEGENDS_URL = (
-    "https://raw.githubusercontent.com/leocmarques/laudos-microscopia/main/legendas.json"
-)
-
-# Carrega a lista de legendas do GitHub (cacheada por 1h)
-@st.cache_data(ttl=3600)
-def load_legends():
-    resp = requests.get(LEGENDS_URL)
-    resp.raise_for_status()
-    return resp.json()
 
 # Novo mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
@@ -126,9 +114,6 @@ def main():
         f'Export?id={file_id}&exportFormat=docx'
     )
 
-     # carrega sugestões de legendas
-    suggestions = load_legends()
-
     # Pré-configura listas para imagens e legendas
     images = [None, None, None]
     legend_inputs = ["", "", ""]
@@ -168,16 +153,6 @@ def main():
             )
 
 
-            # autocomplete de legenda
-        tags = st_tags(
-            label="Legenda:",
-            text="Selecione ou digite…",
-            value=[legend_inputs[i]] if legend_inputs[i] else [],
-            suggestions=suggestions,
-            maxtags=1,
-            key=f"legend_{i}"
-        )
-        legend_inputs[i] = tags[0] if tags else ""
 
     # Formulário: dados da paciente e diagnóstico
     with st.form('form_laudo'):
