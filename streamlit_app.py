@@ -126,6 +126,9 @@ def main():
         f'Export?id={file_id}&exportFormat=docx'
     )
 
+     # carrega sugestões de legendas
+    suggestions = load_legends()
+
     # Pré-configura listas para imagens e legendas
     images = [None, None, None]
     legend_inputs = ["", "", ""]
