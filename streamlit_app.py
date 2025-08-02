@@ -43,6 +43,7 @@ DIAGNOSES = {
         'Observa-se presença de elementos micóticos (pseudo-hifas, blastoconídios e leveduras).'
     ),
     'Vaginite Aeróbia': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite aeróbia.',
+     'Vaginite Atrófica': 'O padrão de microbiota apresentado na lâmina pesquisada é de Vaginite Atrófica.',
     'Flora I': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1).',
     'Flora I + candidíase': 'O padrão de microbiota apresentado na lâmina pesquisada é de Flora I (escore 1). Observa-se concomitantemente presença de elementos micóticos.',
 
@@ -170,7 +171,9 @@ def main():
                 )
             # Gera nome do arquivo de saída
             safe_name = name.strip().replace(' ', '_')
-            out_docx = f'Laudo - {safe_name}.docx'
+            today_iso = date.today().strftime('%Y-%m-%d')
+            out_docx = f'{today_iso} - Laudo - {safe_name}.docx'
+            # out_docx = f'Laudo - {safe_name}.docx'
             # Renderiza e salva
             doc = DocxTemplate(tpl_path)
             for i, img in enumerate(cropped_imgs, 1):
