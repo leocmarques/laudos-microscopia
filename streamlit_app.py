@@ -8,6 +8,8 @@ from docx.shared import Mm
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
+from datetime import date
+
 
 # Novo mapeamento diagnóstico → texto de conclusão
 DIAGNOSES = {
